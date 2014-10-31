@@ -45,8 +45,8 @@ AEGIR_VERSION="6.x-2.1"
 #
 #
 # 1. install software requirements for Aegir, on a bare Debian Wheezy server.
-#    Set the root password for MySQL, and accept the defaults
-#    at postfix install (Internet site, ...)
+#    Set the root password for MySQL
+#    Accept the defaults at postfix install (Internet site, ...)
 #
 apt-get -y update && apt-get -y upgrade
 apt-get -y install apache2 php5 php5-cli php5-gd php5-mysql php-pear postfix sudo rsync git-core unzip mysql-server
@@ -56,15 +56,15 @@ apt-get -y install apache2 php5 php5-cli php5-gd php5-mysql php-pear postfix sud
 #
 # PHP: set higher memory limits
 sed -i 's/memory_limit = -1/memory_limit = 192M/' /etc/php5/cli/php.ini
-sed -i 's/memory_limit = -1/memory_limit = 192M/' /etc/php5/apache2/php.ini
+sed -i 's/memory_limit = 128M/memory_limit = 192M/' /etc/php5/apache2/php.ini
 #
 # Apache
 a2enmod rewrite
 ln -s /var/aegir/config/apache.conf /etc/apache2/conf.d/aegir.conf
 #
 # MySQL: enable all IP addresses to bind
-# sed -i 's/bind-address/#bind-address/' /etc/mysql/my.cnf
-# service mysql restart
+sed -i 's/bind-address/#bind-address/' /etc/mysql/my.cnf
+service mysql restart
 # MySQL: using secure install script instead
 mysql_secure_installation
 #
@@ -89,10 +89,18 @@ cp /tmp/aegir /etc/sudoers.d/aegir
 # Drush install
 #
 wget https://github.com/drush-ops/drush/archive/$DRUSH_VERSION.tar.gz
-gunzip -c $DRUSH_VERSION.tar.gz | tar -xf -C /usr/local/src/
+gunzip -c $DRUSH_VERSION.tar.gz | tar -xf -
+mv drush-$DRUSH_VERSION /usr/local/src/
 rm $DRUSH_VERSION.tar.gz
-chmod u+x /usr/local/src/drush/drush
-ln -s /usr/local/src/drush/drush /usr/local/bin/drush
+chmod u+x /usr/local/src/drush-$DRUSH_VERSION/drush
+ln -s /usr/local/src/drush-$DRUSH_VERSION/drush /usr/local/bin/drush
+# Drush needs to download  Console_Table from PHP
+wget http://download.pear.php.net/package/Console_Table-1.1.3.tgz
+gunzip -c Console_Table-1.1.3.tgz | tar -xf -
+mv Console_Table-1.1.3 /usr/local/src/drush-6.4.0/lib/
+rm Console_Table-1.1.3.tgz
+# check
+which drush
 #
 # install provision backend by drush
 echo "installing provision backend ..."
@@ -104,10 +112,11 @@ echo "installing frontend: Drupal with hostmaster profile ..."
 su -s /bin/sh - aegir -c "drush hostmaster-install"
 
 # install Hosting Queue Daemon
-echo "installing Hosting Queue Daemon ..."
-cp /var/aegir/profiles/hostmaster/modules/hosting/queued/init.d.example /etc/init.d/hosting-queued
-update-rc.d hosting-queued defaults
-/etc/init.d/hosting-queued
+# see: http://community.aegirproject.org/installing/manual#Install_the_Hosting_Queue_Daemon
+# echo "installing Hosting Queue Daemon ..."
+# cp /var/aegir/profiles/hostmaster/modules/hosting/queued/init.d.example /etc/init.d/hosting-queued
+# update-rc.d hosting-queued defaults
+# /etc/init.d/hosting-queued
 
 echo "
 #
